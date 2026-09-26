@@ -24,7 +24,7 @@ export default function Hero() {
   return (
     <section
       id="top"
-      className="relative flex min-h-[100svh] items-end overflow-hidden bg-apple-surface lg:items-center"
+      className="relative flex min-h-[100svh] items-end overflow-hidden bg-black lg:items-center"
     >
       {/* 360° cursor-tracking portrait. Face sits right of center on desktop,
           top-center on mobile — see LAYOUT in components/HeroCanvas.tsx. */}
@@ -33,7 +33,7 @@ export default function Hero() {
       {/* Mobile: darken the lower half so the copy stays readable over the photo */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-apple-surface via-[rgb(10_10_10/0.85)] to-transparent lg:hidden"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/85 to-transparent lg:hidden"
       />
 
       <div className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-32 text-center lg:pb-0 lg:pt-0 lg:text-left">

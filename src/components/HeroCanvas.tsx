@@ -4,7 +4,9 @@ const TOTAL_FRAMES = 64
 const LERP_FACTOR = 0.26
 const DEADZONE_RADIUS = 0.12 // fraction of the viewport diagonal
 const TWO_PI = Math.PI * 2
-const BG_COLOR = '#0a0a0a' // --color-surface, so the canvas edge disappears
+// Pure black: the cut-out frames keep a few near-black wall shadows around the
+// head (luminance ~1–2), which would show as darker patches on #0a0a0a.
+const BG_COLOR = '#000'
 
 // Face center as a fraction of the frame image
 const FACE_CX = 0.5
@@ -63,7 +65,7 @@ function fadeEdges(ctx: CanvasRenderingContext2D, f: ReturnType<typeof heroFit>,
   const band = (x0: number, y0: number, x1: number, y1: number, rx: number, ry: number, rw: number, rh: number) => {
     const g = ctx.createLinearGradient(x0, y0, x1, y1)
     g.addColorStop(0, BG_COLOR)
-    g.addColorStop(1, 'rgba(10,10,10,0)')
+    g.addColorStop(1, 'rgba(0,0,0,0)')
     ctx.fillStyle = g
     ctx.fillRect(rx, ry, rw, rh)
   }
