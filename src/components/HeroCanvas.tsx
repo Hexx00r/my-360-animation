@@ -15,8 +15,8 @@ const FACE_CY = 0.5
 // size: extra multiplier on top of that — below 1 shrinks the frame further.
 // Desktop puts the face right of center so the headline has room on the left.
 const LAYOUT = {
-  desktop: { faceX: 0.7, faceY: 0.5, zoom: 0, size: 0.85 },
-  mobile: { faceX: 0.5, faceY: 0.34, zoom: 0, size: 0.9 },
+  desktop: { faceX: 0.7, faceY: 0.5, zoom: 0, size: 0.65 },
+  mobile: { faceX: 0.5, faceY: 0.34, zoom: 0, size: 0.75 },
 }
 const DESKTOP_MIN_WIDTH = 1024
 
