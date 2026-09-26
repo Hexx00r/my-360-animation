@@ -24,19 +24,20 @@ export default function Hero() {
   return (
     <section
       id="top"
-      className="relative flex min-h-[100svh] items-end overflow-hidden bg-black lg:items-center"
+      className="relative flex min-h-[100svh] flex-col overflow-hidden bg-black pt-14 lg:flex-row lg:items-center lg:pt-0"
     >
-      {/* 360° cursor-tracking portrait. Face sits right of center on desktop,
-          top-center on mobile — see LAYOUT in components/HeroCanvas.tsx. */}
-      <HeroCanvas />
+      {/* 360° portrait. Mobile: its own box above the text so the headline
+          never covers the face. Desktop: fills the hero behind the text, face
+          right of center — see LAYOUT in components/HeroCanvas.tsx. */}
+      <div className="relative h-[52svh] w-full shrink-0 lg:absolute lg:inset-0 lg:h-auto">
+        <HeroCanvas />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black to-transparent lg:hidden"
+        />
+      </div>
 
-      {/* Mobile: darken the lower half so the copy stays readable over the photo */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/85 to-transparent lg:hidden"
-      />
-
-      <div className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-32 text-center lg:pb-0 lg:pt-0 lg:text-left">
+      <div className="relative mx-auto w-full max-w-6xl px-6 pb-14 pt-4 text-center lg:py-0 lg:text-left">
         <div className="mx-auto max-w-xl lg:mx-0">
           <Reveal>
             <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.05em] text-apple-sub">

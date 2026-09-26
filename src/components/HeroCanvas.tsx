@@ -18,9 +18,15 @@ const FACE_CY = 0.5
 // Desktop puts the face right of center so the headline has room on the left.
 const LAYOUT = {
   desktop: { faceX: 0.7, faceY: 0.5, zoom: 0, size: 0.65 },
-  mobile: { faceX: 0.5, faceY: 0.34, zoom: 0, size: 0.75 },
+  // Mobile: the canvas has its own box above the text, so center the face in it
+  mobile: { faceX: 0.5, faceY: 0.32, zoom: 0.5, size: 1 },
 }
 const DESKTOP_MIN_WIDTH = 1024
+
+// Touch devices: follow the finger while touching; after TOUCH_HOLD_MS with no
+// touch, look around on a slow loop so the effect is visible without a mouse.
+const TOUCH_HOLD_MS = 1500
+const IDLE_ORBIT_MS = 9000 // one full turn
 
 const framePath = (i: number) =>
   `${import.meta.env.BASE_URL}frames/frame_${String(i).padStart(2, '0')}.webp`
@@ -99,6 +105,8 @@ export default function HeroCanvas() {
     }
 
     const mouse = { x: 0, y: 0, active: false }
+    const touchDevice = window.matchMedia('(hover: none)').matches
+    let lastTouch = -Infinity
     let smoothAngle = -Math.PI / 2
     let current = -2 // forces the first draw
     let raf = 0
@@ -110,6 +118,19 @@ export default function HeroCanvas() {
     }
     const onLeave = () => {
       mouse.active = false
+    }
+    // Touch events (not pointer events): they keep firing while the page
+    // scrolls, whereas pointermove is cancelled as soon as scrolling starts.
+    const onTouch = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (!t) return
+      mouse.x = t.clientX
+      mouse.y = t.clientY
+      mouse.active = true
+      lastTouch = performance.now()
+    }
+    const onTouchEnd = () => {
+      lastTouch = performance.now()
     }
     const resize = () => {
       const dpr = window.devicePixelRatio || 1
@@ -131,6 +152,9 @@ export default function HeroCanvas() {
       const faceX = rect.left + cssFit.dx + imgW * FACE_CX * cssFit.scale
       const faceY = rect.top + cssFit.dy + imgH * FACE_CY * cssFit.scale
 
+      const now = performance.now()
+      if (touchDevice && now - lastTouch > TOUCH_HOLD_MS) mouse.active = false
+
       let target = -1
       if (!reduced && mouse.active) {
         const dx = mouse.x - faceX
@@ -138,6 +162,11 @@ export default function HeroCanvas() {
         smoothAngle = lerpAngle(smoothAngle, Math.atan2(dy, dx), LERP_FACTOR)
         const diag = Math.hypot(window.innerWidth, window.innerHeight)
         if (Math.hypot(dx, dy) >= diag * DEADZONE_RADIUS) target = angleToFrameIndex(smoothAngle)
+      } else if (!reduced && touchDevice) {
+        // No mouse to follow: slowly look around in a circle
+        const orbit = -Math.PI / 2 + ((now % IDLE_ORBIT_MS) / IDLE_ORBIT_MS) * TWO_PI
+        smoothAngle = lerpAngle(smoothAngle, orbit, 0.08)
+        target = angleToFrameIndex(smoothAngle)
       }
 
       if (target === current) return
@@ -160,6 +189,9 @@ export default function HeroCanvas() {
     window.addEventListener('resize', resize)
     window.addEventListener('mousemove', onMove, { passive: true })
     document.addEventListener('mouseleave', onLeave)
+    window.addEventListener('touchstart', onTouch, { passive: true })
+    window.addEventListener('touchmove', onTouch, { passive: true })
+    window.addEventListener('touchend', onTouchEnd, { passive: true })
     raf = requestAnimationFrame(tick)
 
     return () => {
@@ -167,6 +199,9 @@ export default function HeroCanvas() {
       window.removeEventListener('resize', resize)
       window.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseleave', onLeave)
+      window.removeEventListener('touchstart', onTouch)
+      window.removeEventListener('touchmove', onTouch)
+      window.removeEventListener('touchend', onTouchEnd)
     }
   }, [])
 
