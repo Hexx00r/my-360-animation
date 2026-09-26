@@ -10,12 +10,13 @@ const BG_COLOR = '#0a0a0a' // --color-surface, so the canvas edge disappears
 const FACE_CX = 0.5
 const FACE_CY = 0.5
 
-// Where the face lands on screen, and how far to zoom between
-// contain (0: whole frame visible) and cover (1: fill edge to edge).
+// Where the face lands on screen, and how big the frame is drawn.
+// zoom: 0 = whole frame fits the hero (contain), 1 = fills edge to edge (cover).
+// size: extra multiplier on top of that — below 1 shrinks the frame further.
 // Desktop puts the face right of center so the headline has room on the left.
 const LAYOUT = {
-  desktop: { faceX: 0.7, faceY: 0.45, zoom: 0.25 },
-  mobile: { faceX: 0.5, faceY: 0.34, zoom: 0.35 },
+  desktop: { faceX: 0.7, faceY: 0.5, zoom: 0, size: 0.85 },
+  mobile: { faceX: 0.5, faceY: 0.34, zoom: 0, size: 0.9 },
 }
 const DESKTOP_MIN_WIDTH = 1024
 
@@ -40,10 +41,10 @@ function layoutFor(width: number) {
 
 /** Scale between contain and cover, then place the face at the layout target. */
 function heroFit(imgW: number, imgH: number, cw: number, ch: number, cssWidth: number) {
-  const { faceX, faceY, zoom } = layoutFor(cssWidth)
+  const { faceX, faceY, zoom, size } = layoutFor(cssWidth)
   const contain = Math.min(cw / imgW, ch / imgH)
   const cover = Math.max(cw / imgW, ch / imgH)
-  const scale = contain + (cover - contain) * zoom
+  const scale = (contain + (cover - contain) * zoom) * size
   const dw = imgW * scale
   const dh = imgH * scale
   // Frame smaller than the canvas on an axis: follow the face target freely.
