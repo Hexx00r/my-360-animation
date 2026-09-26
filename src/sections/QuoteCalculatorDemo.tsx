@@ -232,6 +232,7 @@ function QuoteCalculator() {
             required
             autoComplete="name"
             placeholder="Your name"
+            aria-label="Your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded-xl border border-apple-hairline bg-black/40 px-3 py-2 text-sm text-apple-ink placeholder:text-apple-sub focus:border-apple-blue focus:outline-none focus:ring-1 focus:ring-apple-blue"
@@ -242,6 +243,7 @@ function QuoteCalculator() {
             required
             autoComplete="tel"
             placeholder="Phone"
+            aria-label="Phone"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className="w-full rounded-xl border border-apple-hairline bg-black/40 px-3 py-2 text-sm text-apple-ink placeholder:text-apple-sub focus:border-apple-blue focus:outline-none focus:ring-1 focus:ring-apple-blue"
@@ -251,6 +253,7 @@ function QuoteCalculator() {
           name="message"
           rows={3}
           placeholder="Anything else? Gate access, pets, timing… (optional)"
+            aria-label="Anything else (optional)"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           className="mt-3 w-full rounded-xl border border-apple-hairline bg-black/40 px-3 py-2 text-sm text-apple-ink placeholder:text-apple-sub focus:border-apple-blue focus:outline-none focus:ring-1 focus:ring-apple-blue"
@@ -295,10 +298,17 @@ function QuoteCalculator() {
 
 export default function QuoteCalculatorDemo() {
   return (
-    <section id="calculator" className="scroll-mt-16 bg-apple-surface py-[120px]">
-      <div className="mx-auto max-w-[680px] px-6">
+    <section id="calculator" aria-labelledby="calculator-title" className="scroll-mt-16 bg-black py-20 md:py-28">
+      <div className="mx-auto max-w-[680px] px-4 sm:px-6">
         <Reveal className="text-center">
-          <Kicker>Try the calculator</Kicker>
+          <Kicker>Live demo · Project 05</Kicker>
+          <h2 id="calculator-title" className="mt-3 text-3xl font-bold tracking-[-0.02em] text-apple-ink md:text-4xl">
+            Instant quote calculator
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-apple-sub">
+            The pricing logic from the Melbourne cleaning build, running live. Submissions go to a real
+            Cloudflare Worker.
+          </p>
         </Reveal>
 
         <Reveal delay={100} y={32} className="mt-10">

@@ -1,216 +1,250 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+/**
+ * Cursor-bound 360° portrait. Rebuilt from the archived engine
+ * (animation/frames-archive/HeroCanvas.tsx.txt).
+ *
+ * Frames (v2): public/frames/center.webp + frame_00…frame_63.webp, 720×1030,
+ * opaque. frame_00 = looking up, 16 = right, 32 = down, 48 = left
+ * (verified against the files: FRAME_OFFSET = 0). The v1 set (720×1280,
+ * transparent) is archived in animation/frames-archive-v1/.
+ *
+ * Fit is CONTAIN inside a box locked to the frame ratio, on solid black, so
+ * the head is never cropped. The box is sized by CSS before any frame loads
+ * (no layout shift).
+ *
+ * Reduced motion, or no fine hover pointer (touch): center.webp only — no
+ * frame preload, no rAF loop, no cursor tracking.
+ */
 
 const TOTAL_FRAMES = 64
-const LERP_FACTOR = 0.26
-const DEADZONE_RADIUS = 0.12 // fraction of the viewport diagonal
+/** Index of the "looking up" frame. Change if a re-shot set starts elsewhere. */
+const FRAME_OFFSET = 0
+const LERP = 0.26
+const DEADZONE = 0.12 // fraction of the viewport diagonal
 const TWO_PI = Math.PI * 2
-// Pure black: the cut-out frames keep a few near-black wall shadows around the
-// head (luminance ~1–2), which would show as darker patches on #0a0a0a.
-const BG_COLOR = '#000'
+const BG = '#000'
 
-// Face center as a fraction of the frame image
-const FACE_CX = 0.5
-const FACE_CY = 0.5
+/** Point between the eyes, as fractions of the frame. Measured on the v2
+ *  center.webp: pupils at x≈302 and x≈442, eye line y≈300 (of 720×1030). */
+const FACE_CX = 0.514
+const FACE_CY = 0.291
 
-// Where the face lands on screen, and how big the frame is drawn.
-// zoom: 0 = whole frame fits the hero (contain), 1 = fills edge to edge (cover).
-// size: extra multiplier on top of that — below 1 shrinks the frame further.
-// Desktop puts the face right of center so the headline has room on the left.
-const LAYOUT = {
-  desktop: { faceX: 0.7, faceY: 0.5, zoom: 0, size: 0.65 },
-  // Mobile: the canvas has its own box above the text, so center the face in it
-  mobile: { faceX: 0.5, faceY: 0.32, zoom: 0.5, size: 1 },
-}
-const DESKTOP_MIN_WIDTH = 1024
+const FRAME_W = 720
+const FRAME_H = 1030
 
-// Touch devices: follow the finger while touching; after TOUCH_HOLD_MS with no
-// touch, look around on a slow loop so the effect is visible without a mouse.
-const TOUCH_HOLD_MS = 1500
-const IDLE_ORBIT_MS = 9000 // one full turn
+const base = import.meta.env.BASE_URL
+const CENTER_SRC = `${base}frames/center.webp`
+const frameSrc = (i: number) => `${base}frames/frame_${String(i).padStart(2, '0')}.webp`
 
-const framePath = (i: number) =>
-  `${import.meta.env.BASE_URL}frames/frame_${String(i).padStart(2, '0')}.webp`
-const CENTER_PATH = `${import.meta.env.BASE_URL}frames/center.webp`
-
+/** Shortest-arc angular lerp. */
 function lerpAngle(a: number, b: number, t: number) {
-  const diff = ((((b - a + Math.PI) % TWO_PI) + TWO_PI) % TWO_PI) - Math.PI
-  return a + diff * t
+  const d = ((((b - a + Math.PI) % TWO_PI) + TWO_PI) % TWO_PI) - Math.PI
+  return a + d * t
 }
 
-// Cursor angle -> frame index (0 = up, 16 = right, 32 = down, 48 = left)
-function angleToFrameIndex(angle: number) {
-  const shifted = (((angle + Math.PI / 2) % TWO_PI) + TWO_PI) % TWO_PI
-  return Math.round((shifted / TWO_PI) * TOTAL_FRAMES) % TOTAL_FRAMES
+/** Screen angle (atan2, 0 = right, +y down) → frame index, 0 = up. */
+function angleToIndex(angle: number) {
+  const fromUp = (((angle + Math.PI / 2) % TWO_PI) + TWO_PI) % TWO_PI
+  return (Math.round((fromUp / TWO_PI) * TOTAL_FRAMES) + FRAME_OFFSET) % TOTAL_FRAMES
 }
 
-function layoutFor(width: number) {
-  return width >= DESKTOP_MIN_WIDTH ? LAYOUT.desktop : LAYOUT.mobile
+/** Contain-fit rect for an image in a canvas, centered. */
+function containRect(iw: number, ih: number, cw: number, ch: number) {
+  const s = Math.min(cw / iw, ch / ih)
+  const w = iw * s
+  const h = ih * s
+  return { x: (cw - w) / 2, y: (ch - h) / 2, w, h }
 }
 
-/** Scale between contain and cover, then place the face at the layout target. */
-function heroFit(imgW: number, imgH: number, cw: number, ch: number, cssWidth: number) {
-  const { faceX, faceY, zoom, size } = layoutFor(cssWidth)
-  const contain = Math.min(cw / imgW, ch / imgH)
-  const cover = Math.max(cw / imgW, ch / imgH)
-  const scale = (contain + (cover - contain) * zoom) * size
-  const dw = imgW * scale
-  const dh = imgH * scale
-  // Frame smaller than the canvas on an axis: follow the face target freely.
-  // Larger: clamp so the frame always covers that axis.
-  const place = (target: number, size: number, canvas: number) =>
-    size <= canvas ? target : Math.min(0, Math.max(canvas - size, target))
-  const dx = place(cw * faceX - imgW * FACE_CX * scale, dw, cw)
-  const dy = place(ch * faceY - imgH * FACE_CY * scale, dh, ch)
-  return { scale, dx, dy, dw, dh }
-}
-
-/** Soft black fade on any frame edge that sits inside the canvas. */
-function fadeEdges(ctx: CanvasRenderingContext2D, f: ReturnType<typeof heroFit>, cw: number, ch: number) {
-  const fx = f.dw * 0.18
-  const fy = f.dh * 0.12
-  const band = (x0: number, y0: number, x1: number, y1: number, rx: number, ry: number, rw: number, rh: number) => {
-    const g = ctx.createLinearGradient(x0, y0, x1, y1)
-    g.addColorStop(0, BG_COLOR)
-    g.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = g
-    ctx.fillRect(rx, ry, rw, rh)
-  }
-  const right = f.dx + f.dw
-  const bottom = f.dy + f.dh
-  if (f.dx > 0) band(f.dx, 0, f.dx + fx, 0, f.dx, 0, fx, ch)
-  if (right < cw) band(right, 0, right - fx, 0, right - fx, 0, fx, ch)
-  if (f.dy > 0) band(0, f.dy, 0, f.dy + fy, 0, f.dy, cw, fy)
-  if (bottom < ch) band(0, bottom, 0, bottom - fy, 0, bottom - fy, cw, fy)
-}
-
-export default function HeroCanvas() {
+export default function HeroCanvas({ onLoaded }: { onLoaded?: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const onLoadedRef = useRef(onLoaded)
+  const [drawn, setDrawn] = useState(false)
+
+  useEffect(() => {
+    onLoadedRef.current = onLoaded
+  }, [onLoaded])
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d', { alpha: false })
-    if (!ctx) return
+    const ctx = canvas?.getContext('2d', { alpha: false })
+    if (!canvas || !ctx) return
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const frames: HTMLImageElement[] = []
-    const center = new Image()
-    center.src = CENTER_PATH
-    if (!reduced) {
-      for (let i = 0; i < TOTAL_FRAMES; i++) {
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+    const interactive = !reduced && finePointer
+
+    const load = (src: string) =>
+      new Promise<HTMLImageElement>((resolve) => {
         const img = new Image()
-        img.src = framePath(i)
-        frames.push(img)
+        img.decoding = 'async'
+        img.onload = img.onerror = () => resolve(img)
+        img.src = src
+      })
+
+    const center = load(CENTER_SRC)
+    const frames = interactive ? Array.from({ length: TOTAL_FRAMES }, (_, i) => load(frameSrc(i))) : []
+    const images: (HTMLImageElement | null)[] = Array(TOTAL_FRAMES).fill(null)
+    let centerImg: HTMLImageElement | null = null
+    let disposed = false
+    let current = -2 // -1 = center, 0..63 = directional, -2 = nothing drawn
+    let target = -1
+
+
+    frames.forEach((p, i) => p.then((img) => (images[i] = img.naturalWidth ? img : null)))
+    center.then((img) => {
+      if (disposed) return
+      centerImg = img.naturalWidth ? img : null
+      current = -2 // force a draw now that the center frame exists
+      draw()
+      if (!interactive) onLoadedRef.current?.()
+    })
+    if (interactive) {
+      Promise.all([center, ...frames]).then(() => !disposed && onLoadedRef.current?.())
+    }
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const w = Math.round(canvas!.clientWidth * dpr)
+      const h = Math.round(canvas!.clientHeight * dpr)
+      if (canvas!.width !== w || canvas!.height !== h) {
+        canvas!.width = w
+        canvas!.height = h
+        current = -2
       }
     }
 
-    const mouse = { x: 0, y: 0, active: false }
-    const touchDevice = window.matchMedia('(hover: none)').matches
-    let lastTouch = -Infinity
-    let smoothAngle = -Math.PI / 2
-    let current = -2 // forces the first draw
-    let raf = 0
-
-    const onMove = (e: MouseEvent) => {
-      mouse.x = e.clientX
-      mouse.y = e.clientY
-      mouse.active = true
-    }
-    const onLeave = () => {
-      mouse.active = false
-    }
-    // Touch events (not pointer events): they keep firing while the page
-    // scrolls, whereas pointermove is cancelled as soon as scrolling starts.
-    const onTouch = (e: TouchEvent) => {
-      const t = e.touches[0]
-      if (!t) return
-      mouse.x = t.clientX
-      mouse.y = t.clientY
-      mouse.active = true
-      lastTouch = performance.now()
-    }
-    const onTouchEnd = () => {
-      lastTouch = performance.now()
-    }
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1
-      canvas.width = canvas.clientWidth * dpr
-      canvas.height = canvas.clientHeight * dpr
-      current = -2
-    }
-
-    function tick() {
-      raf = requestAnimationFrame(tick)
-      if (!center.complete || !center.naturalWidth) return
-
-      const rect = canvas!.getBoundingClientRect()
-      if (rect.bottom < 0 || rect.top > window.innerHeight) return // off screen
-
-      const imgW = center.naturalWidth
-      const imgH = center.naturalHeight
-      const cssFit = heroFit(imgW, imgH, rect.width, rect.height, rect.width)
-      const faceX = rect.left + cssFit.dx + imgW * FACE_CX * cssFit.scale
-      const faceY = rect.top + cssFit.dy + imgH * FACE_CY * cssFit.scale
-
-      const now = performance.now()
-      if (touchDevice && now - lastTouch > TOUCH_HOLD_MS) mouse.active = false
-
-      let target = -1
-      if (!reduced && mouse.active) {
-        const dx = mouse.x - faceX
-        const dy = mouse.y - faceY
-        smoothAngle = lerpAngle(smoothAngle, Math.atan2(dy, dx), LERP_FACTOR)
-        const diag = Math.hypot(window.innerWidth, window.innerHeight)
-        if (Math.hypot(dx, dy) >= diag * DEADZONE_RADIUS) target = angleToFrameIndex(smoothAngle)
-      } else if (!reduced && touchDevice) {
-        // No mouse to follow: slowly look around in a circle
-        const orbit = -Math.PI / 2 + ((now % IDLE_ORBIT_MS) / IDLE_ORBIT_MS) * TWO_PI
-        smoothAngle = lerpAngle(smoothAngle, orbit, 0.08)
-        target = angleToFrameIndex(smoothAngle)
-      }
-
+    /** Draws `target` if it differs from what's on the canvas and is loaded. */
+    function draw() {
       if (target === current) return
-      const img = target === -1 ? center : frames[target]
-      if (!img.complete || !img.naturalWidth) return // not loaded yet; retry next tick
-      current = target
-
-      const cw = canvas!.width
-      const ch = canvas!.height
-      const fit = heroFit(imgW, imgH, cw, ch, rect.width)
-      ctx!.globalAlpha = 1
-      ctx!.fillStyle = BG_COLOR
+      const img = target === -1 ? centerImg : images[target]
+      if (!img) return // not loaded yet; the next tick retries
+      const { width: cw, height: ch } = canvas!
+      ctx!.fillStyle = BG
       ctx!.fillRect(0, 0, cw, ch)
-      // One crisp frame at full opacity — no crossfade between frames
-      ctx!.drawImage(img, fit.dx, fit.dy, fit.dw, fit.dh)
-      fadeEdges(ctx!, fit, cw, ch)
+      const r = containRect(img.naturalWidth || FRAME_W, img.naturalHeight || FRAME_H, cw, ch)
+      ctx!.drawImage(img, r.x, r.y, r.w, r.h)
+      current = target
+      canvas!.dataset.frame = String(current) // read by scripts/render-check.mjs
+      setDrawn(true)
     }
 
     resize()
-    window.addEventListener('resize', resize)
+
+    if (!interactive) {
+      const onResize = () => {
+        resize()
+        draw()
+      }
+      window.addEventListener('resize', onResize)
+      return () => {
+        disposed = true
+        window.removeEventListener('resize', onResize)
+      }
+    }
+
+    /* ----------------------------- interactive ----------------------------- */
+
+    const mouse = { x: 0, y: 0, inside: false }
+    let smooth = -Math.PI / 2 // start looking up-ish; only used once the cursor moves
+    let raf = 0
+    let running = false
+
+    const onScreen = () => {
+      const r = canvas.getBoundingClientRect()
+      return r.bottom > 0 && r.top < window.innerHeight
+    }
+
+    function tick() {
+      // Pause the loop while the hero is scrolled off screen; onScroll restarts it.
+      if (!onScreen()) {
+        running = false
+        canvas!.dataset.loop = 'paused'
+        return
+      }
+      raf = requestAnimationFrame(tick)
+
+      if (!mouse.inside) {
+        target = -1
+      } else {
+        const rect = canvas!.getBoundingClientRect()
+        const fit = containRect(FRAME_W, FRAME_H, rect.width, rect.height)
+        const fx = rect.left + fit.x + fit.w * FACE_CX
+        const fy = rect.top + fit.y + fit.h * FACE_CY
+        const dx = mouse.x - fx
+        const dy = mouse.y - fy
+        const diag = Math.hypot(window.innerWidth, window.innerHeight)
+        if (Math.hypot(dx, dy) < diag * DEADZONE) {
+          target = -1 // eye contact
+        } else {
+          smooth = lerpAngle(smooth, Math.atan2(dy, dx), LERP)
+          target = angleToIndex(smooth)
+        }
+      }
+      draw()
+    }
+
+    const start = () => {
+      if (running || disposed) return
+      running = true
+      canvas.dataset.loop = 'running'
+      raf = requestAnimationFrame(tick)
+    }
+
+    const onMove = (e: MouseEvent) => {
+      if (!mouse.inside) smooth = Math.atan2(e.clientY - window.innerHeight / 2, e.clientX - window.innerWidth / 2)
+      mouse.x = e.clientX
+      mouse.y = e.clientY
+      mouse.inside = true
+    }
+    // Leaving the window recenters (relatedTarget null = left the document).
+    const onOut = (e: MouseEvent) => {
+      if (!e.relatedTarget) mouse.inside = false
+    }
+    const onBlur = () => (mouse.inside = false)
+    const onResize = () => {
+      resize()
+      start()
+    }
+
     window.addEventListener('mousemove', onMove, { passive: true })
-    document.addEventListener('mouseleave', onLeave)
-    window.addEventListener('touchstart', onTouch, { passive: true })
-    window.addEventListener('touchmove', onTouch, { passive: true })
-    window.addEventListener('touchend', onTouchEnd, { passive: true })
-    raf = requestAnimationFrame(tick)
+    document.addEventListener('mouseout', onOut)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('resize', onResize)
+    window.addEventListener('scroll', start, { passive: true })
+    start()
 
     return () => {
+      disposed = true
       cancelAnimationFrame(raf)
-      window.removeEventListener('resize', resize)
       window.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseleave', onLeave)
-      window.removeEventListener('touchstart', onTouch)
-      window.removeEventListener('touchmove', onTouch)
-      window.removeEventListener('touchend', onTouchEnd)
+      document.removeEventListener('mouseout', onOut)
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('scroll', start)
     }
   }, [])
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 block h-full w-full"
-      style={{ backgroundColor: BG_COLOR }}
-    />
+    <div className="relative mx-auto aspect-[720/1030] w-[min(100%,calc(60svh*720/1030))] bg-black lg:w-[min(100%,calc(70svh*720/1030))]">
+      {/* Prerendered still: paints before JS and stays for no-JS visitors.
+          The canvas takes over once it has drawn a frame. */}
+      <img
+        src={CENTER_SRC}
+        alt=""
+        width={FRAME_W}
+        height={FRAME_H}
+        fetchPriority="high"
+        decoding="async"
+        className="absolute inset-0 h-full w-full object-contain"
+      />
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label="Portrait of Paul that turns to follow your cursor"
+        className={`absolute inset-0 block h-full w-full ${drawn ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
   )
 }

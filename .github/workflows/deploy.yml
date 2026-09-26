@@ -34,6 +34,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Project-page URL (github.io/my-360-animation/). Cloudflare Pages builds use the default '/'.
+          BASE_PATH: /my-360-animation/
+          # GitHub Pages has no /api, so point at the deployed Worker (repo variable), if set.
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

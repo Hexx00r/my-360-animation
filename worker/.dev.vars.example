@@ -1,0 +1,8 @@
+# Copy to worker/.dev.vars for `npm run worker:dev`. .dev.vars is gitignored.
+TYPESAFE_API_KEY=ts_your_key_here
+
+# Contact delivery — set at least one, or leave CONTACT_DEV_LOG=true to just log locally.
+CONTACT_DEV_LOG=true
+# CONTACT_WEBHOOK_URL=https://your-n8n.example.com/webhook/portfolio-contact
+# RESEND_API_KEY=re_your_key_here
+# CONTACT_FROM_EMAIL=Portfolio <hello@yourdomain.com>

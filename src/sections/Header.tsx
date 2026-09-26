@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Droplet, Menu, X } from 'lucide-react'
-import { BOOKING } from '@/components/Shared'
+import { Code2, Menu, X } from 'lucide-react'
+import { profile } from '@/data/profile'
 
 const NAV: { label: string; href: string; chat?: boolean }[] = [
-  { label: 'What I Build', href: '#build' },
-  { label: 'Case Studies', href: '#case-study-dj' },
-  { label: 'Automations', href: '#automations' },
-  { label: 'Calculator', href: '#calculator' },
-  { label: 'Guides', href: 'https://paulsunnydev.com/guides/' },
   { label: 'About', href: '#about' },
+  { label: 'Stack', href: '#stack' },
+  { label: 'Projects', href: '#projects' },
+  { label: 'Services', href: '#services' },
+  { label: 'Process', href: '#process' },
   { label: 'Chat', href: '#chat', chat: true },
 ]
 
@@ -42,10 +41,10 @@ export default function Header() {
         style={{ backgroundColor: scrolled ? 'rgba(10,10,10,0.7)' : 'transparent' }}
       >
         <div className="relative z-10 flex h-12 items-center justify-between gap-4 px-5">
-          <a href="#top" className="flex items-center gap-2 text-apple-ink" aria-label="Home">
-            <Droplet className="h-5 w-5 text-apple-blue" strokeWidth={2.5} />
+          <a href="#top" className="flex items-center gap-2 text-apple-ink" aria-label={`${profile.shortName}, back to top`}>
+            <Code2 aria-hidden="true" className="h-5 w-5 text-apple-blue" strokeWidth={2.5} />
             <span className="hidden text-sm font-semibold tracking-tight sm:block">
-              Paul Isogon
+              {profile.shortName}
             </span>
           </a>
 
@@ -66,23 +65,22 @@ export default function Header() {
             </nav>
 
             <a
-              href={BOOKING}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex rounded-full bg-apple-blueSolid px-3 py-1.5 text-[11px] font-semibold text-black transition-all duration-300 hover:bg-apple-blueDark md:px-4 md:text-xs"
+              href="#contact"
+              className="inline-flex rounded-full bg-apple-blueSolid px-4 py-2 text-xs font-semibold text-black transition-all duration-300 hover:bg-apple-blueDark"
             >
-              Free Funnel Website Audit
+              Hire Me
             </a>
 
             {/* Mobile hamburger */}
             <button
               type="button"
-              className="inline-flex h-9 w-9 items-center justify-center text-apple-ink opacity-80 md:hidden"
+              aria-controls="mobile-menu"
+              className="inline-flex h-11 w-11 items-center justify-center text-apple-ink opacity-80 md:hidden"
               aria-expanded={open}
               aria-label={open ? 'Close menu' : 'Open menu'}
               onClick={() => setOpen((v) => !v)}
             >
-              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {open ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
             </button>
           </div>
         </div>
@@ -91,6 +89,8 @@ export default function Header() {
       {/* Mobile menu — sibling of header (not inside the backdrop-filter
           context, which would trap position:fixed to the header's box) */}
       <div
+        id="mobile-menu"
+        inert={!open}
         className={`fixed inset-x-0 top-12 bottom-0 z-40 border-apple-glassLine backdrop-blur-xl transition-[opacity,transform] duration-300 md:hidden ${
           open ? 'pointer-events-auto opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
         }`}
@@ -109,12 +109,11 @@ export default function Header() {
             </a>
           ))}
           <a
-            href={BOOKING}
-            target="_blank"
-            rel="noreferrer"
+            href="#contact"
+            onClick={() => setOpen(false)}
             className="mt-6 inline-flex items-center justify-center rounded-full bg-apple-blueSolid px-6 py-3 text-base font-semibold text-black transition-all duration-300 hover:bg-apple-blueDark"
           >
-            Book a Free Funnel Website Audit
+            Hire Me
           </a>
         </nav>
       </div>

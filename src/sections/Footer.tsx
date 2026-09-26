@@ -1,7 +1,6 @@
-import { Droplet } from 'lucide-react'
-import { BOOKING, MAILTO, RESUME, YOUTUBE } from '@/components/Shared'
-
-const GITHUB_URL = 'https://github.com/Hexx00r'
+import { Code2 } from 'lucide-react'
+import { RESUME } from '@/components/Shared'
+import { profile, socials } from '@/data/profile'
 
 const COLUMNS: {
   title: string
@@ -10,47 +9,43 @@ const COLUMNS: {
   {
     title: 'Explore',
     links: [
-      { label: 'What I Build', href: '#build' },
-      { label: 'Case Study: DJ Property', href: '#case-study-dj' },
-      { label: 'Case Study: Melbourne HPC', href: '#case-study-melbourne' },
-      { label: 'The Automation Engine', href: '#automations' },
       { label: 'About', href: '#about' },
+      { label: 'Stack', href: '#stack' },
+      { label: 'Projects', href: '#projects' },
+      { label: 'Services', href: '#services' },
+      { label: 'Process', href: '#process' },
     ],
   },
   {
     title: 'Work with me',
     links: [
-      { label: 'Book a Call', href: BOOKING, external: true },
+      { label: 'Contact form', href: '#contact' },
       { label: 'Chat', href: '#chat', chat: true },
-      { label: 'Email', href: MAILTO },
-      { label: 'Resume', href: RESUME, download: true },
+      { label: 'Resume (PDF)', href: RESUME, download: true },
     ],
   },
   {
     title: 'Connect',
-    links: [
-      { label: 'GitHub', href: GITHUB_URL, external: true },
-      { label: 'YouTube', href: YOUTUBE, external: true },
-    ],
+    links: socials
+      .filter((s) => s.href && s.id !== 'email')
+      .map((s) => ({ label: s.label, href: s.href, external: true })),
   },
 ]
 
 export default function Footer() {
   return (
-    <footer className="bg-apple-surface py-10">
-      <div className="mx-auto max-w-6xl px-6">
-        <a href="#top" className="flex items-center gap-2 text-apple-ink" aria-label="Home">
-          <Droplet className="h-5 w-5 text-apple-blue" strokeWidth={2.5} />
-          <span className="text-sm font-semibold tracking-tight">Paul Isogon</span>
+    <footer className="border-t border-apple-hairline bg-apple-surface py-10">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <a href="#top" className="flex items-center gap-2 text-apple-ink" aria-label={`${profile.shortName}, back to top`}>
+          <Code2 aria-hidden="true" className="h-5 w-5 text-apple-blue" strokeWidth={2.5} />
+          <span className="text-sm font-semibold tracking-tight">{profile.shortName}</span>
         </a>
 
         <nav className="mt-10 grid gap-8 sm:grid-cols-3" aria-label="Footer">
           {COLUMNS.map((col) => (
             <div key={col.title}>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-apple-ink">
-                {col.title}
-              </h3>
-              <ul className="mt-3 space-y-2.5">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-apple-ink">{col.title}</h2>
+              <ul className="mt-3 space-y-1">
                 {col.links.map((link) => (
                   <li key={link.label}>
                     <a
@@ -59,7 +54,7 @@ export default function Footer() {
                       target={link.external ? '_blank' : undefined}
                       rel={link.external ? 'noopener noreferrer' : undefined}
                       data-pdc-chat={link.chat ? '' : undefined}
-                      className="text-xs text-apple-sub transition-colors hover:text-apple-ink"
+                      className="inline-block py-1.5 text-sm text-apple-sub transition-colors hover:text-apple-ink"
                     >
                       {link.label}
                     </a>
@@ -71,7 +66,7 @@ export default function Footer() {
         </nav>
 
         <p className="mt-10 border-t border-apple-hairline pt-6 text-xs text-apple-sub">
-          © {new Date().getFullYear()} Paul Sunny Isogon Jr
+          © {new Date().getFullYear()} {profile.name} · {profile.role}
         </p>
       </div>
     </footer>
