@@ -1,0 +1,35 @@
+/* ── Water Splash Header ─────────────────────────────────────
+   Drop this into your project and include via:
+   <link rel="stylesheet" href="splash.css">
+   ─────────────────────────────────────────────────────────── */
+
+.site-header {
+  position: relative;
+  height: 72px;
+  background: #0b0e14;
+  border-bottom: 1px solid #1c2333;
+  overflow: hidden;           /* ← clips the splash to the header */
+  z-index: 10;
+}
+
+.site-header canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;       /* ← don't block nav clicks */
+}
+
+/* ── Your header content goes above the canvas ── */
+.header-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
