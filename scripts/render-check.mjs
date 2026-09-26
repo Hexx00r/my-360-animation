@@ -16,11 +16,12 @@ import { chromium, devices } from 'playwright'
 import { mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { inflateSync } from 'node:zlib'
 
 const BASE = process.env.BASE_URL || 'http://localhost:3000'
 const SHOTS = join(tmpdir(), 'render-check')
 mkdirSync(SHOTS, { recursive: true })
-const SECTIONS = ['top', 'about', 'stack', 'projects', 'calculator', 'services', 'process', 'contact']
+const SECTIONS = ['top', 'about', 'stack', 'projects', 'services', 'process', 'contact']
 const RATIO = 720 / 1030 // public/frames/*.webp (v2)
 const HEIGHT_CAP = { mobile: 0.6, desktop: 0.7 } // × viewport height (svh)
 const FACE = { cx: 0.514, cy: 0.291 } // keep in sync with HeroCanvas.tsx
@@ -56,6 +57,59 @@ async function heroGeometry(page) {
   })
 }
 
+/** Minimal PNG decoder (8-bit RGB/RGBA, non-interlaced: what Playwright writes). */
+function decodePng(buf) {
+  let pos = 8
+  let width = 0
+  let height = 0
+  let channels = 0
+  const idat = []
+  while (pos < buf.length) {
+    const len = buf.readUInt32BE(pos)
+    const type = buf.toString('ascii', pos + 4, pos + 8)
+    const data = buf.subarray(pos + 8, pos + 8 + len)
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0)
+      height = data.readUInt32BE(4)
+      channels = { 2: 3, 6: 4 }[data[9]]
+    } else if (type === 'IDAT') idat.push(data)
+    pos += 12 + len
+  }
+  const raw = inflateSync(Buffer.concat(idat))
+  const stride = width * channels
+  const px = Buffer.alloc(height * stride)
+  for (let y = 0; y < height; y++) {
+    const f = raw[y * (stride + 1)]
+    for (let x = 0; x < stride; x++) {
+      const v = raw[y * (stride + 1) + 1 + x]
+      const a = x >= channels ? px[y * stride + x - channels] : 0
+      const b = y > 0 ? px[(y - 1) * stride + x] : 0
+      const c = x >= channels && y > 0 ? px[(y - 1) * stride + x - channels] : 0
+      const p = a + b - c
+      const pr = Math.abs(p - a) <= Math.abs(p - b) && Math.abs(p - a) <= Math.abs(p - c) ? a : Math.abs(p - b) <= Math.abs(p - c) ? b : c
+      px[y * stride + x] = (v + [0, a, b, (a + b) >> 1, pr][f]) & 255
+    }
+  }
+  return { width, height, at: (x, y) => [...px.subarray(y * stride + x * channels, y * stride + x * channels + 3)] }
+}
+
+/** Screenshot of the hero frame box; true if every sampled edge pixel is black. */
+async function frameEdgesBlack(page) {
+  const box = await page.evaluate(() => {
+    const r = document.querySelector('#top canvas').getBoundingClientRect()
+    return { x: r.left, y: r.top + window.scrollY, width: r.width, height: r.height }
+  })
+  const img = decodePng(await page.screenshot({ clip: box, fullPage: true }))
+  const pts = []
+  const W = img.width - 1
+  const H = img.height - 1
+  for (let i = 0; i <= 10; i++) {
+    pts.push([Math.round((W * i) / 10), 1], [1, Math.round((H * i) / 20)], [W - 1, Math.round((H * i) / 20)])
+  }
+  const bad = pts.map(([x, y]) => [x, y, img.at(x, y)]).filter(([, , [r, g, b]]) => r + g + b > 9)
+  return { ok: bad.length === 0, bad: bad.slice(0, 5) }
+}
+
 const browser = await chromium.launch()
 
 for (const width of [375, 768, 1440]) {
@@ -83,6 +137,10 @@ for (const width of [375, 768, 1440]) {
   check(`[${width}] hero frame within height cap`, g.height <= cap + 1, `${g.height} > ${cap}`)
   check(`[${width}] hero background is black`, g.bg === 'rgb(0, 0, 0)', g.bg)
   check(`[${width}] hero text below the frame`, g.textTop >= g.bottom, `h1 top ${g.textTop} < frame bottom ${g.bottom}`)
+  await page.waitForFunction(() => document.querySelector('#top canvas').dataset.frame !== undefined, null, { timeout: 10000 }).catch(() => {})
+  await page.waitForTimeout(300)
+  const edges = await frameEdgesBlack(page)
+  check(`[${width}] no frame edge: transparent areas render black`, edges.ok, JSON.stringify(edges.bad))
 
   // Canvas painted the center frame (desktop Chromium = fine pointer)
   await page.waitForFunction(() => document.querySelector('#top canvas').dataset.frame !== undefined, null, { timeout: 10000 }).catch(() => {})
@@ -106,6 +164,43 @@ for (const width of [375, 768, 1440]) {
 
   check(`[${width}] no page errors`, errors.length === 0, errors.join(' | '))
   check(`[${width}] no failed requests`, bad.length === 0, bad.join(' | '))
+  await page.close()
+}
+
+// Every frame file is a transparent cutout
+{
+  const page = await browser.newPage()
+  await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 60000 })
+  const res = await page.evaluate(async (framesUrl) => {
+    const names = ['center', ...Array.from({ length: 64 }, (_, i) => `frame_${String(i).padStart(2, '0')}`)]
+    const out = []
+    for (const n of names) {
+      const img = new Image()
+      img.src = `${framesUrl}${n}.webp`
+      await img.decode()
+      const c = document.createElement('canvas')
+      c.width = img.naturalWidth
+      c.height = img.naturalHeight
+      const ctx = c.getContext('2d')
+      ctx.drawImage(img, 0, 0)
+      const d = ctx.getImageData(0, 0, c.width, c.height).data
+      let translucent = 0
+      let zero = 0
+      for (let i = 3; i < d.length; i += 4) {
+        if (d[i] < 255) translucent++
+        if (d[i] === 0) zero++
+      }
+      out.push({ n, w: c.width, h: c.height, translucent, zero })
+    }
+    return out
+  }, new URL('frames/', BASE.endsWith('/') ? BASE : `${BASE}/`).href)
+  check('[frames] 65 frames decoded', res.length === 65, String(res.length))
+  const opaque = res.filter((r) => r.translucent === 0).map((r) => r.n)
+  check('[frames] every frame has alpha < 255 somewhere', opaque.length === 0, opaque.join(','))
+  const noZero = res.filter((r) => r.zero === 0).map((r) => r.n)
+  check('[frames] every frame has fully transparent background', noZero.length === 0, noZero.join(','))
+  const size = res.filter((r) => r.w !== 720 || r.h !== 1030).map((r) => `${r.n} ${r.w}x${r.h}`)
+  check('[frames] all 720×1030', size.length === 0, size.join(','))
   await page.close()
 }
 

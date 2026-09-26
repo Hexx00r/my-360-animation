@@ -4,7 +4,6 @@ import Hero from '@/sections/Hero'
 import About from '@/sections/About'
 import Stack from '@/sections/Stack'
 import Projects from '@/sections/Projects'
-import QuoteCalculatorDemo from '@/sections/QuoteCalculatorDemo'
 import Services from '@/sections/Services'
 import Process from '@/sections/Process'
 import Contact from '@/sections/Contact'
@@ -25,7 +24,6 @@ export default function Home() {
         <About />
         <Stack />
         <Projects />
-        <QuoteCalculatorDemo />
         <Services />
         <Process />
         <Contact />

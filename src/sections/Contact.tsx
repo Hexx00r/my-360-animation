@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
-import { CheckCircle2, Github, Linkedin, Mail, Briefcase, Youtube, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Github, Globe, Linkedin, Mail, Youtube, type LucideIcon } from 'lucide-react'
 import Section from '@/components/Section'
 import Reveal from '@/components/Reveal'
 import { api } from '@/api/client'
@@ -7,9 +7,9 @@ import { CONTACT_LIMITS, PROJECT_TYPES, validateContact, type ContactRequest } f
 import { profile, socials, type SocialLink } from '@/data/profile'
 
 const SOCIAL_ICONS: Record<SocialLink['id'], LucideIcon> = {
+  website: Globe,
   github: Github,
   linkedin: Linkedin,
-  upwork: Briefcase,
   youtube: Youtube,
   email: Mail,
 }

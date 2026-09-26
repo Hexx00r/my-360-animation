@@ -5,11 +5,13 @@ import { useEffect, useRef, useState } from 'react'
  * (animation/frames-archive/HeroCanvas.tsx.txt).
  *
  * Frames (v2): public/frames/center.webp + frame_00…frame_63.webp, 720×1030,
- * opaque. frame_00 = looking up, 16 = right, 32 = down, 48 = left
+ * transparent cutouts (scripts/remove-bg.py). frame_00 = looking up, 16 = right, 32 = down, 48 = left
  * (verified against the files: FRAME_OFFSET = 0). The v1 set (720×1280,
  * transparent) is archived in animation/frames-archive-v1/.
  *
- * Fit is CONTAIN inside a box locked to the frame ratio, on solid black, so
+ * Fit is CONTAIN inside a box locked to the frame ratio. The canvas is
+ * transparent and cleared between frames, so the hero section's #000 shows
+ * around the head. Contain also means
  * the head is never cropped. The box is sized by CSS before any frame loads
  * (no layout shift).
  *
@@ -23,7 +25,6 @@ const FRAME_OFFSET = 0
 const LERP = 0.26
 const DEADZONE = 0.12 // fraction of the viewport diagonal
 const TWO_PI = Math.PI * 2
-const BG = '#000'
 
 /** Point between the eyes, as fractions of the frame. Measured on the v2
  *  center.webp: pupils at x≈302 and x≈442, eye line y≈300 (of 720×1030). */
@@ -68,7 +69,7 @@ export default function HeroCanvas({ onLoaded }: { onLoaded?: () => void }) {
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const ctx = canvas?.getContext('2d', { alpha: false })
+    const ctx = canvas?.getContext('2d', { alpha: true })
     if (!canvas || !ctx) return
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -121,8 +122,7 @@ export default function HeroCanvas({ onLoaded }: { onLoaded?: () => void }) {
       const img = target === -1 ? centerImg : images[target]
       if (!img) return // not loaded yet; the next tick retries
       const { width: cw, height: ch } = canvas!
-      ctx!.fillStyle = BG
-      ctx!.fillRect(0, 0, cw, ch)
+      ctx!.clearRect(0, 0, cw, ch) // transparent: the section's black shows through
       const r = containRect(img.naturalWidth || FRAME_W, img.naturalHeight || FRAME_H, cw, ch)
       ctx!.drawImage(img, r.x, r.y, r.w, r.h)
       current = target
@@ -229,7 +229,8 @@ export default function HeroCanvas({ onLoaded }: { onLoaded?: () => void }) {
   return (
     <div className="relative mx-auto aspect-[720/1030] w-[min(100%,calc(60svh*720/1030))] bg-black lg:w-[min(100%,calc(70svh*720/1030))]">
       {/* Prerendered still: paints before JS and stays for no-JS visitors.
-          The canvas takes over once it has drawn a frame. */}
+          Hidden once the canvas has drawn, since the transparent frames would
+          otherwise show it behind the turned head. */}
       <img
         src={CENTER_SRC}
         alt=""
@@ -237,7 +238,7 @@ export default function HeroCanvas({ onLoaded }: { onLoaded?: () => void }) {
         height={FRAME_H}
         fetchPriority="high"
         decoding="async"
-        className="absolute inset-0 h-full w-full object-contain"
+        className={`absolute inset-0 h-full w-full object-contain ${drawn ? 'invisible' : ''}`}
       />
       <canvas
         ref={canvasRef}

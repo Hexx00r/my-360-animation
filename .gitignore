@@ -33,3 +33,7 @@ _reference/
 # Wrangler
 .wrangler/
 .dev.vars
+
+# rembg virtualenv for scripts/remove-bg.py
+scripts/rembg-venv/
+scripts/.rembg-cache/

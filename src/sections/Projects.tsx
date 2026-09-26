@@ -1,4 +1,4 @@
-import { ArrowUpRight, PlayCircle } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import Section from '@/components/Section'
 import Reveal from '@/components/Reveal'
 import { projects, type Project } from '@/data/projects'
@@ -35,13 +35,7 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
           decoding="async"
           className="block aspect-[16/9] w-full border-b border-apple-hairline object-cover object-top"
         />
-      ) : (
-        import.meta.env.DEV && (
-          <div className="px-6 pt-6 md:px-8">
-            <DevTodo>screenshot</DevTodo>
-          </div>
-        )
-      )}
+      ) : null}
 
       <div className="flex flex-1 flex-col p-6 md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.05em] text-apple-sub">
@@ -73,22 +67,28 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
               ))}
             </ul>
           </div>
-          {(project.result || import.meta.env.DEV) && (
+          {(project.result || project.resultImage) && (
             <div>
               <Label>Result</Label>
-              <div className="mt-1.5">
-                {project.result ? <p className="text-apple-ink">{project.result}</p> : <DevTodo>measured result</DevTodo>}
+              <div className="mt-1.5 space-y-3">
+                {project.result && <p className="text-apple-ink">{project.result}</p>}
+                {project.resultImage && (
+                  <img
+                    src={`${import.meta.env.BASE_URL}${project.resultImage.src}`}
+                    alt={project.resultImage.alt}
+                    width={project.resultImage.width}
+                    height={project.resultImage.height}
+                    loading="lazy"
+                    decoding="async"
+                    className="block h-auto w-full rounded-2xl border border-apple-hairline"
+                  />
+                )}
               </div>
             </div>
           )}
         </div>
 
         <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-7">
-          {project.demoAnchor && (
-            <a href={project.demoAnchor} className="inline-flex items-center gap-1.5 text-sm font-semibold text-apple-blue hover:text-apple-blueDark">
-              <PlayCircle aria-hidden="true" className="h-4 w-4" /> Try the live demo
-            </a>
-          )}
           {project.links.map((l) => (
             <a
               key={l.href}

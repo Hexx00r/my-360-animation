@@ -2,27 +2,28 @@
  * Case studies (problem → stack → what I built → result). Shared by the
  * Projects section and the chat Worker.
  *
- * `result` is intentionally TODO where there is no measured outcome yet — do
- * not replace it with estimates. Fill `links` and `screenshot` as they exist.
+ * `result` stays null where there is no measured outcome yet (the Result block
+ * is then hidden) — do not replace it with estimates. Fill `links` and
+ * `screenshot` as they exist.
  */
 
 export type ProjectLink = { label: string; href: string }
 
 export type Project = {
-  id: 'portfolio-360' | 'melbourne-quote-booking' | 'ai-enquiry-classifier' | 'worker-relay' | 'quote-calculator'
+  id: 'portfolio-360' | 'melbourne-quote-booking' | 'ai-enquiry-classifier' | 'worker-relay'
   title: string
   /** Short label shown above the title. */
   category: string
   problem: string
   stack: string[]
   built: string[]
-  /** Measured outcome. `null` renders as a visible TODO. */
+  /** Measured outcome. With no `resultImage` either, the Result block is hidden. */
   result: string | null
+  /** Photo evidence shown under Result. Path under public/ (no leading slash). */
+  resultImage?: { src: string; alt: string; width: number; height: number }
   links: ProjectLink[]
   /** Path under public/ (no leading slash), or null until a screenshot exists. */
   screenshot: { src: string; alt: string; width: number; height: number } | null
-  /** In-page anchor for a live demo on this site, if there is one. */
-  demoAnchor?: string
 }
 
 export const projects: Project[] = [
@@ -40,8 +41,19 @@ export const projects: Project[] = [
       'Chat that routes each question with typed TypeSafe judgments and answers from the same data this page renders',
     ],
     result: null, // TODO: Lighthouse scores + chat → contact conversion once live
+    resultImage: {
+      src: 'images/projects/portfolio-chat.webp',
+      alt: 'Site chat answering "Can you connect my website form to a CRM?" from the page content and linking a related case study',
+      width: 1896,
+      height: 985,
+    },
     links: [{ label: 'Source on GitHub', href: 'https://github.com/Hexx00r/my-360-animation' }],
-    screenshot: null, // TODO
+    screenshot: {
+      src: 'images/projects/portfolio-360.jpg',
+      alt: 'Portfolio hero with the 360° cursor-tracking portrait facing the viewer',
+      width: 1600,
+      height: 900,
+    },
   },
   {
     id: 'melbourne-quote-booking',
@@ -56,9 +68,19 @@ export const projects: Project[] = [
       'Follow-up and booking automation plus a branded PDF quote',
     ],
     result: null, // TODO: enquiry → booking rate, response time
-    links: [], // TODO: live site / write-up link
-    screenshot: null, // TODO: public/images/melbourne-hpc-photos has site photos; add a UI screenshot
-    demoAnchor: '#calculator',
+    resultImage: {
+      src: 'images/melbourne-hpc-photos/maps-02.jpg',
+      alt: 'Melbourne High Pressure Cleaning technician surface-cleaning a concrete path beside a bowls green',
+      width: 1200,
+      height: 800,
+    },
+    links: [{ label: 'Sample quote (PDF)', href: '/docs/melbourne-hpc-quote-sample.pdf' }],
+    screenshot: {
+      src: 'images/projects/melbourne-quote.webp',
+      alt: 'Melbourne High Pressure Cleaning instant-estimate form showing a $450 driveway quote',
+      width: 1600,
+      height: 807,
+    },
   },
   {
     id: 'ai-enquiry-classifier',
@@ -71,9 +93,9 @@ export const projects: Project[] = [
       'n8n workflow that receives enquiries by webhook and sends them to the Anthropic API for a structured JSON intake',
       'Fixed JSON output shape checked before anything downstream runs, so later steps work from typed fields instead of raw text',
     ], // TODO: list the actual schema fields and downstream routing
-    result: null, // TODO: volume handled, accuracy spot-check, time saved
+    result: null,
     links: [], // TODO
-    screenshot: null, // TODO: n8n workflow screenshot
+    screenshot: null,
   },
   {
     id: 'worker-relay',
@@ -87,24 +109,8 @@ export const projects: Project[] = [
       'Fan-out to CRM inbound webhooks and Telegram notifications, with secrets held in Worker environment variables',
       'Runs on the Cloudflare free tier with no servers to maintain',
     ],
-    result: null, // TODO: uptime / submissions processed
+    result: null,
     links: [], // TODO
-    screenshot: null, // TODO
-  },
-  {
-    id: 'quote-calculator',
-    title: 'Instant quote calculator (live demo)',
-    category: 'Frontend · Pricing logic',
-    problem:
-      'Visitors want a price before they will hand over their details, and the business still needs a qualified lead with the job details attached.',
-    stack: ['React', 'TypeScript', 'Tailwind CSS', 'Cloudflare Workers'],
-    built: [
-      'Live estimate from multiple services, area inputs, condition surcharge, bundle discount and a minimum job',
-      'Quote request form with a honeypot that posts the full breakdown to an edge Worker',
-    ],
-    result: null, // TODO
-    links: [],
     screenshot: null,
-    demoAnchor: '#calculator',
   },
 ]

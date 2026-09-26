@@ -156,7 +156,7 @@
   }
 }
 
-/* Form fields (contact form, quote calculator) */
+/* Form fields (contact form) */
 @layer components {
   .field {
     @apply w-full rounded-xl border border-apple-hairline bg-black/40 px-3.5 py-2.5 text-base text-apple-ink placeholder:text-apple-sub focus:border-apple-blue focus:outline-none focus:ring-1 focus:ring-apple-blue;

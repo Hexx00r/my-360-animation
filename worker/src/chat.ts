@@ -126,7 +126,6 @@ function describeService(s: Service) {
 function describeProject(p: Project) {
   const lines = [`${p.title}`, `Problem: ${p.problem}`, `What Paul built:\n${bullets(p.built.slice(0, 3))}`]
   lines.push(`Stack: ${p.stack.join(', ')}`)
-  if (p.demoAnchor) lines.push('There’s a live demo further down this page.')
   return lines.join('\n\n')
 }
 
