@@ -3,16 +3,6 @@ import Section from '@/components/Section'
 import Reveal from '@/components/Reveal'
 import { projects, type Project } from '@/data/projects'
 
-/** Missing data shows as a TODO badge in dev builds only, never in production. */
-function DevTodo({ children }: { children: string }) {
-  if (!import.meta.env.DEV) return null
-  return (
-    <span className="inline-block rounded-full border border-dashed border-yellow-400/60 px-2.5 py-0.5 text-xs text-yellow-300">
-      TODO: {children}
-    </span>
-  )
-}
-
 function Label({ children }: { children: string }) {
   return <h4 className="text-xs font-semibold uppercase tracking-[0.05em] text-apple-blue">{children}</h4>
 }
@@ -88,22 +78,23 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
           )}
         </div>
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-7">
-          {project.links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-apple-ink hover:text-apple-blue"
-            >
-              {l.label}
-              <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
-              <span className="sr-only">(opens in a new tab)</span>
-            </a>
-          ))}
-          {!project.links.length && <DevTodo>links</DevTodo>}
-        </div>
+        {project.links.length > 0 && (
+          <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-7">
+            {project.links.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-apple-ink hover:text-apple-blue"
+              >
+                {l.label}
+                <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+                <span className="sr-only">(opens in a new tab)</span>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </Reveal>
   )
