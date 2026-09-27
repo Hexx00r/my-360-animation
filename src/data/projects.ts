@@ -94,7 +94,7 @@ export const projects: Project[] = [
       'Fixed JSON output shape checked before anything downstream runs, so later steps work from typed fields instead of raw text',
     ], // TODO: list the actual schema fields and downstream routing
     result: null,
-    links: [], // TODO
+    links: [],
     screenshot: null,
   },
   {
@@ -110,7 +110,7 @@ export const projects: Project[] = [
       'Runs on the Cloudflare free tier with no servers to maintain',
     ],
     result: null,
-    links: [], // TODO
+    links: [],
     screenshot: null,
   },
 ]
