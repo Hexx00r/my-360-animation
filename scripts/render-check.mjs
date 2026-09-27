@@ -1,7 +1,9 @@
 // scripts/render-check.mjs — end-to-end smoke test of the portfolio.
 // At 375/768/1440 px: every section renders, no horizontal scroll, no page
 // errors or 4xx/5xx, and the 360° hero box is the frames' 720:1030, fully
-// visible, centered on black, inside its height cap, with the text below.
+// visible, on black, inside its height cap. Below 1024 px the frame is
+// centered with the text below; at 1024+ image and text sit side by side,
+// vertically centered on one line, and the pair is centered in the page.
 // Desktop: the frame follows the cursor (up/right/down/left), turns
 // smoothly, snaps to center in the dead zone, recenters when the mouse
 // leaves, and the loop pauses off screen. Touch + reduced motion: center
@@ -41,6 +43,7 @@ async function heroGeometry(page) {
   return page.evaluate(() => {
     const box = document.querySelector('#top canvas').parentElement.getBoundingClientRect()
     const h1 = document.querySelector('#top h1').getBoundingClientRect()
+    const text = document.querySelector('#top h1').parentElement.parentElement.getBoundingClientRect()
     const bg = getComputedStyle(document.querySelector('#top')).backgroundColor
     return {
       left: box.left,
@@ -50,6 +53,9 @@ async function heroGeometry(page) {
       width: box.width,
       height: box.height,
       textTop: h1.top,
+      textLeft: text.left,
+      textRight: window.innerWidth - text.right,
+      textMid: (text.top + text.bottom) / 2,
       vw: window.innerWidth,
       vh: window.innerHeight,
       bg,
@@ -133,10 +139,17 @@ for (const width of [375, 768, 1440]) {
   const cap = (width >= 1024 ? HEIGHT_CAP.desktop : HEIGHT_CAP.mobile) * g.vh
   check(`[${width}] hero box is the frames' 720:1030`, Math.abs(g.width / g.height - RATIO) < 0.01, `${g.width}×${g.height}`)
   check(`[${width}] hero frame fully visible horizontally`, g.left >= 0 && g.right >= 0, JSON.stringify(g))
-  check(`[${width}] hero frame centered`, Math.abs(g.left - g.right) <= 2, `left ${g.left} right ${g.right}`)
+  const sideBySide = width >= 1024
+  if (sideBySide) {
+    check(`[${width}] hero image + text centered as a pair`, Math.abs(g.left - g.textRight) <= 2, `left ${g.left} right ${g.textRight}`)
+    check(`[${width}] hero text beside the frame`, g.textLeft >= g.left + g.width, `text left ${g.textLeft} < frame right ${g.left + g.width}`)
+    check(`[${width}] hero image and text share a vertical center`, Math.abs((g.top + g.bottom) / 2 - g.textMid) <= 2, `frame ${(g.top + g.bottom) / 2} text ${g.textMid}`)
+  } else {
+    check(`[${width}] hero frame centered`, Math.abs(g.left - g.right) <= 2, `left ${g.left} right ${g.right}`)
+    check(`[${width}] hero text below the frame`, g.textTop >= g.bottom, `h1 top ${g.textTop} < frame bottom ${g.bottom}`)
+  }
   check(`[${width}] hero frame within height cap`, g.height <= cap + 1, `${g.height} > ${cap}`)
   check(`[${width}] hero background is black`, g.bg === 'rgb(0, 0, 0)', g.bg)
-  check(`[${width}] hero text below the frame`, g.textTop >= g.bottom, `h1 top ${g.textTop} < frame bottom ${g.bottom}`)
   await page.waitForFunction(() => document.querySelector('#top canvas').dataset.frame !== undefined, null, { timeout: 10000 }).catch(() => {})
   await page.waitForTimeout(300)
   const edges = await frameEdgesBlack(page)
@@ -226,9 +239,10 @@ for (const width of [375, 768, 1440]) {
     return frame(page)
   }
   const dirs = [
-    ['right', R, 0, 16],
+    // Horizontal aims are clamped to the window (the frame sits left of center).
+    ['right', Math.min(R, 1430 - face.x), 0, 16],
     ['down', 0, Math.min(R, 890 - face.y), 32],
-    ['left', -R, 0, 48],
+    ['left', -Math.min(R, face.x - 10), 0, 48],
     ['up', 0, -Math.min(R, face.y - 10), 0],
   ]
   for (const [name, dx, dy, want] of dirs) {
